@@ -156,6 +156,40 @@ git commit --allow-empty -m "DX-1: test commit hook validation"
 > **Note for new clones**: `core.hooksPath` is a local git setting and is not committed.
 > Each developer must run `git config --local core.hooksPath .githooks` once per clone.
 
+## CI Pipeline Pattern
+
+All service repos (`sentic-signal`, `sentic-notifier`) follow the same pipeline:
+
+```
+push to main
+  └─► test + helm-lint (parallel)
+        └─► build-and-push (GHCR)
+              └─► trivy vulnerability scan
+                    └─► open image-tag PR (ci/image-tag-<sha>)
+                          └─► auto-merge → ArgoCD sync → deploy
+```
+
+### Image Tag PRs
+
+After a successful build, CI opens a PR that bumps the image tag in `values-dev.yaml` (or `kustomization.yaml` for repos using the infra reusable workflow). The PR is scoped to the deploy config file only.
+
+Auto-merge is enabled on the PR immediately after creation using [`peter-evans/enable-pull-request-automerge`](https://github.com/peter-evans/enable-pull-request-automerge). The merge method is **squash**.
+
+Auto-merge will fire as soon as all required branch protection checks pass. If it cannot be enabled (e.g. repo setting not yet active), CI logs a warning and the PR remains open for manual merge.
+
+**Required GitHub repo settings for auto-merge to activate:**
+
+| Setting | Location |
+|---------|----------|
+| Allow auto-merge | Settings → General → Pull Requests |
+| Allow squash merging | Settings → General → Pull Requests |
+| Actions write permissions | Settings → Actions → General → Workflow permissions |
+| Allow Actions to create PRs | Settings → Actions → General |
+
+### Commit Message Check
+
+All PRs (including image-tag PRs) pass through the `commit-message-check.yml` workflow. Image-tag PRs use the `ci:` prefix which passes the validator's pattern.
+
 ## Adding new tooling
 
 - **Applies to one service only** → add to that service's `.github/` directory
