@@ -17,6 +17,54 @@ See [ADR-002](https://github.com/ad-1/sentic-infra/blob/main/docs/adr/ADR-002-SE
 | `.github/agents/sentic-architect.agent.md` | Senior Principal Architect — cross-service design, ADRs, roadmap |
 | `.github/agents/sentic-shipper.agent.md` | Git workflow operator for ticket-prefixed commits and safe pushes |
 | `.github/agents/sentic-reviewer.agent.md` | Code reviewer — quality, refactoring, test coverage across all services |
+| `.githooks/commit-msg` | Local git hook — delegates to `scripts/validate-commit-message.sh` |
+| `scripts/validate-commit-message.sh` | Validates commit subject format (shared across all repos) |
+| `scripts/test-commit-msg-hook.sh` | 16-case pass/fail test suite for the commit message validator |
+| `.github/workflows/commit-message-check.yml` | CI backstop — validates all PR commits against the same format |
+
+## Commit and Push Workflow
+
+The `commit-and-push` prompt handles the full commit workflow — staging, message generation, and push — so you never have to write a ticket-prefixed message manually.
+
+### In VS Code Copilot Chat
+
+Open the chat panel (`⌘I` or `⌃⌘I`) and type:
+
+```
+@workspace /commit-and-push service=dx
+```
+
+Or pass an explicit work ID:
+
+```
+@workspace /commit-and-push service=signal work_id=SIG-99
+```
+
+### What the prompt does
+
+1. **Validates** the repo and branch (warns before committing to `main`)
+2. **Stages** all changes if nothing is already staged
+3. **Generates** a concise imperative summary from the diff
+4. **Constructs** the message: `<WORK_ID>: <summary>`
+5. **Commits** and **pushes** (or prints the push command if skipped)
+
+### Work ID resolution
+
+| Situation | ID used |
+|-----------|---------|
+| `work_id=SIG-42` passed | `SIG-42` |
+| Branch named `feature/42` | `GH-42` |
+| Branch named `SIG-99-foo` | `SIG-99` |
+| No ticket found | `<SVC>-YYYYMMDD-HHMM` (e.g. `DX-20260501-0955`) |
+
+### Supported services
+
+| Argument | Repo |
+|----------|------|
+| `service=infra` | `sentic-infra` |
+| `service=signal` | `sentic-signal` |
+| `service=notifier` | `sentic-notifier` |
+| `service=dx` | `sentic-dx` |
 
 ## Setup
 
