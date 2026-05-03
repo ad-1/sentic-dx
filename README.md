@@ -12,50 +12,46 @@ See [ADR-002](https://github.com/ad-1/sentic-infra/blob/main/docs/adr/ADR-002-SE
 | Path | Purpose |
 |------|---------|
 | `.github/prompts/audit-readiness.prompt.md` | Platform-wide Sentic Lab standards checker (Pydantic, env vars, types, dry-run) |
-| `.github/prompts/commit-and-push.prompt.md` | Auto-stage, generate prefixed commit message, commit, and push to GitHub |
+| `.github/prompts/commit-and-push.prompt.md` | Auto-stage, generate SEN-prefixed commit message, commit, and push to GitHub |
 | `.github/prompts/ci-push-and-sync.prompt.md` | CI push and ArgoCD sync workflow (covers signal and notifier) |
-| `.github/agents/sentic-architect.agent.md` | Senior Principal Architect — cross-service design, ADRs, roadmap |
-| `.github/agents/sentic-shipper.agent.md` | Git workflow operator for ticket-prefixed commits and safe pushes |
-| `.github/agents/sentic-reviewer.agent.md` | Code reviewer — quality, refactoring, test coverage across all services |
-| `.githooks/commit-msg` | Local git hook — delegates to `scripts/validate-commit-message.sh` |
-| `scripts/validate-commit-message.sh` | Validates commit subject format (shared across all repos) |
-| `scripts/test-commit-msg-hook.sh` | 16-case pass/fail test suite for the commit message validator |
-| `.github/workflows/commit-message-check.yml` | CI backstop — validates all PR commits against the same format |
+| `.github/agents/sentic-architect.agent.md` | Senior Principal Architect - cross-service design, ADRs, roadmap |
+| `.github/agents/sentic-shipper.agent.md` | Git workflow operator for SEN-prefixed commits and safe pushes |
+| `.github/agents/sentic-reviewer.agent.md` | Code reviewer - quality, refactoring, test coverage across all services |
+| `.github/workflows/commit-message-check.yml` | Minimal SEN commit-prefix CI check (same file shape in each repo) |
 
 ## Commit and Push Workflow
 
-The `commit-and-push` prompt handles the full commit workflow — staging, message generation, and push — so you never have to write a ticket-prefixed message manually.
+The `commit-and-push` prompt handles the full commit workflow - staging, message generation, and push.
 
 ### In VS Code Copilot Chat
 
 Open the chat panel (`⌘I` or `⌃⌘I`) and type:
 
-```
+```bash
 @workspace /commit-and-push service=dx
 ```
 
 Or pass an explicit work ID:
 
-```
-@workspace /commit-and-push service=signal work_id=SIG-99
+```bash
+@workspace /commit-and-push service=signal work_id=SEN-99
 ```
 
 ### What the prompt does
 
-1. **Validates** the repo and branch (warns before committing to `main`)
-2. **Stages** all changes if nothing is already staged
-3. **Generates** a concise imperative summary from the diff
-4. **Constructs** the message: `<WORK_ID>: <summary>`
-5. **Commits** and **pushes** (or prints the push command if skipped)
+1. Validates the repo and branch (warns before committing to `main`)
+2. Stages all changes if nothing is already staged
+3. Generates a concise imperative summary from the diff
+4. Constructs the message: `<WORK_ID>: <summary>`
+5. Commits and pushes (or prints the push command if skipped)
 
 ### Work ID resolution
 
 | Situation | ID used |
 |-----------|---------|
-| `work_id=SIG-42` passed | `SIG-42` |
-| Branch named `feature/42` | `GH-42` |
-| Branch named `SIG-99-foo` | `SIG-99` |
-| No ticket found | `<SVC>-YYYYMMDD-HHMM` (e.g. `DX-20260501-0955`) |
+| `work_id=SEN-42` passed | `SEN-42` |
+| Branch named `feature/42` | `SEN-42` |
+| Branch name has no numeric suffix | `SEN` |
 
 ### Supported services
 
@@ -64,6 +60,9 @@ Or pass an explicit work ID:
 | `service=infra` | `sentic-infra` |
 | `service=signal` | `sentic-signal` |
 | `service=notifier` | `sentic-notifier` |
+| `service=extractor` | `sentic-extractor` |
+| `service=aggregator` | `sentic-aggregator` |
+| `service=analyst` | `sentic-analyst` |
 | `service=dx` | `sentic-dx` |
 
 ## Setup
@@ -74,123 +73,84 @@ Clone alongside the other Sentic repos and open `sentic-infra/sentic-platform.co
 git clone https://github.com/ad-1/sentic-dx ../sentic-dx
 ```
 
-The workspace file references `sentic-dx` by relative path — all prompts and agents are
+The workspace file references `sentic-dx` by relative path - all prompts and agents are
 immediately available in all repos once the workspace is open.
 
-## Commit Message Hooks
+## Commit Prefix Policy
 
-Every Sentic repo enforces a consistent commit message format at two layers:
+Every Sentic repo uses one lightweight CI-only commit format rule:
 
-| Layer | Mechanism | When it fires |
-|-------|-----------|---------------|
-| Local | `git commit-msg` hook | Every `git commit` on the developer's machine |
-| CI | `.github/workflows/commit-message-check.yml` | Every PR on GitHub Actions |
+- Commit subject starts with `SEN`
+- Allowed forms: `SEN: <summary>` or `SEN-<number>: <summary>`
+- Validation runs on every pull request via `.github/workflows/commit-message-check.yml`
 
 ### Format
 
-```
-<WORK_ID>: <imperative summary starting lowercase>
-```
-
-| Pattern | Example |
-|---------|---------|
-| `PREFIX-N` (ticket) | `SIG-42: simplify docker install layer order` |
-| `PREFIX-YYYYMMDD-HHMM` (date-stamp) | `INF-20260501-0840: document bootstrap prerequisites` |
-
-Rules:
-- Prefix: 2–10 uppercase letters, hyphen, digits
-- Colon + space separator (`: `)
-- Body starts with a lowercase letter or digit
-- Subject line ≤ 120 characters
-- Merge commits are skipped by the CI check
-
-### Installing the hook (per repo)
-
-Each repo ships `.githooks/commit-msg` and `scripts/validate-commit-message.sh`. Register the
-hooks directory once after cloning:
-
-```bash
-git config --local core.hooksPath .githooks
+```text
+SEN(-<number>)?: <imperative summary>
 ```
 
-Verify it is active:
+Examples:
 
-```bash
-git config --local core.hooksPath   # should print: .githooks
-```
+- `SEN: simplify docker install layer order`
+- `SEN-42: add smoke check for rabbitmq publisher`
+- `SEN-317: document bootstrap prerequisites`
 
-### Testing the hooks
+### Reuse model
 
-Run the shared test suite from this repo against any validator:
-
-```bash
-# Test the local repo's validator
-./scripts/test-commit-msg-hook.sh
-
-# Test another repo's validator
-./scripts/test-commit-msg-hook.sh /path/to/repo/scripts/validate-commit-message.sh
-```
-
-The script exercises 16 cases — 6 that must pass and 10 that must be blocked — and exits
-non-zero if any case behaves unexpectedly.
-
-**Live git commit test (manual)**:
-
-```bash
-# Should be blocked
-git commit --allow-empty -m "wip: bad message"
-
-# Should succeed
-git commit --allow-empty -m "DX-1: test commit hook validation"
-```
+- Every repo uses the same tiny `commit-message-check.yml` file
+- Rule is intentionally minimal: `^SEN(-[0-9]+)?: .+`
+- No local git hooks and no validator scripts required
 
 ### Status across repos
 
-| Repo | `core.hooksPath` | Hook file | CI workflow |
-|------|-----------------|-----------|-------------|
-| sentic-infra | `.githooks` ✓ | `.githooks/commit-msg` ✓ | `commit-message-check.yml` ✓ |
-| sentic-notifier | `.githooks` ✓ | `.githooks/commit-msg` ✓ | `commit-message-check.yml` ✓ |
-| sentic-signal | `.githooks` ✓ | `.githooks/commit-msg` ✓ | `commit-message-check.yml` ✓ |
-| sentic-dx | `.githooks` ✓ | `.githooks/commit-msg` ✓ | `commit-message-check.yml` ✓ |
-
-> **Note for new clones**: `core.hooksPath` is a local git setting and is not committed.
-> Each developer must run `git config --local core.hooksPath .githooks` once per clone.
+| Repo | CI workflow |
+|------|-------------|
+| sentic-infra | `commit-message-check.yml` |
+| sentic-notifier | `commit-message-check.yml` |
+| sentic-signal | `commit-message-check.yml` |
+| sentic-extractor | `commit-message-check.yml` |
+| sentic-aggregator | `commit-message-check.yml` |
+| sentic-analyst | `commit-message-check.yml` |
+| sentic-dx | `commit-message-check.yml` |
 
 ## CI Pipeline Pattern
 
 All service repos (`sentic-signal`, `sentic-notifier`) follow the same pipeline:
 
-```
+```text
 push to main
-  └─► test + helm-lint (parallel)
-        └─► build-and-push (GHCR)
-              └─► trivy vulnerability scan
-                    └─► open image-tag PR (ci/image-tag-<sha>)
-                          └─► auto-merge → ArgoCD sync → deploy
+  -> test + helm-lint (parallel)
+    -> build-and-push (GHCR)
+      -> trivy vulnerability scan
+        -> open image-tag PR (ci/image-tag-<sha>)
+          -> auto-merge -> ArgoCD sync -> deploy
 ```
 
 ### Image Tag PRs
 
-After a successful build, CI opens a PR that bumps the image tag in `values-dev.yaml` (or `kustomization.yaml` for repos using the infra reusable workflow). The PR is scoped to the deploy config file only.
+After a successful build, CI opens a PR that bumps the image tag in `values.yaml`
+(or `kustomization.yaml` for repos using the infra reusable workflow). The PR is scoped to
+the deploy config file only.
 
-Auto-merge is enabled on the PR immediately after creation using [`peter-evans/enable-pull-request-automerge`](https://github.com/peter-evans/enable-pull-request-automerge). The merge method is **squash**.
-
-Auto-merge will fire as soon as all required branch protection checks pass. If it cannot be enabled (e.g. repo setting not yet active), CI logs a warning and the PR remains open for manual merge.
-
-**Required GitHub repo settings for auto-merge to activate:**
-
-| Setting | Location |
-|---------|----------|
-| Allow auto-merge | Settings → General → Pull Requests |
-| Allow squash merging | Settings → General → Pull Requests |
-| Actions write permissions | Settings → Actions → General → Workflow permissions |
-| Allow Actions to create PRs | Settings → Actions → General |
+Auto-merge is enabled on the PR immediately after creation using
+`peter-evans/enable-pull-request-automerge` with squash merge.
 
 ### Commit Message Check
 
-All PRs (including image-tag PRs) pass through the `commit-message-check.yml` workflow. Image-tag PRs use the `ci:` prefix which passes the validator's pattern.
+All PRs (including image-tag PRs) pass through `commit-message-check.yml`.
+Image-tag PR commits use `SEN-0:` to satisfy the same rule.
+
+### Required GitHub settings
+
+| Setting | Location |
+|---------|----------|
+| Allow auto-merge | Settings -> General -> Pull Requests |
+| Allow squash merging | Settings -> General -> Pull Requests |
+| Actions write permissions | Settings -> Actions -> General -> Workflow permissions |
+| Allow Actions to create PRs | Settings -> Actions -> General |
 
 ## Adding new tooling
 
-- **Applies to one service only** → add to that service's `.github/` directory
-- **Applies to multiple services** → add here
+- Applies to one service only -> add to that service's `.github/` directory
+- Applies to multiple services -> add here

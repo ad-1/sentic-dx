@@ -1,8 +1,8 @@
 ---
-description: "Use when: creating a git commit and pushing to GitHub with a standard ticket-style prefix across sentic-infra, sentic-signal, sentic-notifier, or sentic-dx. Auto-generates the commit message so the user does not need to write one."
+description: "Use when: creating a git commit and pushing to GitHub with the standard SEN prefix across Sentic repos. Auto-generates the commit message so the user does not need to write one."
 agent: "agent"
 tools: [run_in_terminal, get_terminal_output]
-argument-hint: "service=<infra|signal|notifier|dx> work_id=<optional, e.g. GH-42 or SIG-128> push=<yes|no>"
+argument-hint: "service=<infra|signal|notifier|extractor|aggregator|analyst|dx> work_id=<optional, e.g. SEN or SEN-42> push=<yes|no>"
 ---
 
 You are running a standardized Sentic commit workflow.
@@ -15,29 +15,26 @@ If no arguments are provided, ask for the target service first.
 - infra -> /Users/andrewdavies/Code/sentic/sentic-infra
 - signal -> /Users/andrewdavies/Code/sentic/sentic-signal
 - notifier -> /Users/andrewdavies/Code/sentic/sentic-notifier
+- extractor -> /Users/andrewdavies/Code/sentic/sentic-extractor
+- aggregator -> /Users/andrewdavies/Code/sentic/sentic-aggregator
+- analyst -> /Users/andrewdavies/Code/sentic/sentic-analyst
 - dx -> /Users/andrewdavies/Code/sentic/sentic-dx
 
-## Ticket-style prefix rules
+## SEN prefix rules
 
 Generate `WORK_ID` in this order:
 1. If user passed `work_id`, use it.
-2. Else, try to parse one from branch name using:
-   - `[A-Z]{2,10}-[0-9]+` (e.g. `SIG-42`)
-   - `issue/<n>` or `feature/<n>` -> `GH-<n>`
-3. Else, generate fallback ID from service code + timestamp:
-   - infra -> `INF-$(date +%Y%m%d-%H%M)`
-   - signal -> `SIG-$(date +%Y%m%d-%H%M)`
-   - notifier -> `NOT-$(date +%Y%m%d-%H%M)`
-   - dx -> `DX-$(date +%Y%m%d-%H%M)`
+2. Else, if branch name includes a number (for example `feature/42`), use `SEN-<n>`.
+3. Else, use `SEN`.
 
 Commit message format is always:
 
 `<WORK_ID>: <imperative-summary>`
 
 Examples:
-- `SIG-42: simplify docker install layer order`
-- `GH-317: add smoke check for rabbitmq publisher`
-- `INF-20260501-0840: document bootstrap prerequisites`
+- `SEN: simplify docker install layer order`
+- `SEN-42: add smoke check for rabbitmq publisher`
+- `SEN-317: document bootstrap prerequisites`
 
 ## Workflow
 

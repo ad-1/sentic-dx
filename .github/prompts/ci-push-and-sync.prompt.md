@@ -12,10 +12,10 @@ You are automating the CI deploy cycle for a Sentic service. The user has provid
 Both `sentic-notifier` and `sentic-signal` follow the same CI pipeline on push to `main`:
 1. **Test** — unit tests must pass.
 2. **Build & Push** — Docker image built and pushed to GHCR with a `sha-<short>` tag.
-3. **Update Image Tag** — CI opens a PR to bump `deploy/chart/values-dev.yaml` with the new tag. This PR requires human approval before merge.
+3. **Update Image Tag** — CI opens a PR to bump `deploy/chart/values.yaml` with the new tag. This PR requires human approval before merge.
 4. **ArgoCD** — detects the merged PR and syncs the cluster automatically.
 
-After the tag-bump PR is merged, the local repo will be behind `origin/main` by one commit (the automated bump). A `git pull` is required before the next push to avoid a merge conflict on `values-dev.yaml`.
+After the tag-bump PR is merged, the local repo will be behind `origin/main` by one commit (the automated bump). A `git pull` is required before the next push to avoid a merge conflict on `values.yaml`.
 
 ## Repo paths
 
@@ -64,6 +64,6 @@ Confirm the local branch is now up to date and show the latest commit (the autom
 
 Print a brief summary:
 - Service deployed
-- Image tag pushed (extract from the PR title or values-dev.yaml)
+- Image tag pushed (extract from the PR title or values.yaml)
 - CI status
 - Local branch status
